@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useMemo } from 'react'
 import { Button } from '@/components/ui/Button'
 import type { Product } from '@/types/product'
 
@@ -11,49 +12,48 @@ interface ProductCardProps {
 // BUG: This component has several accessibility and performance issues
 export function ProductCard({ product }: ProductCardProps) {
   const isOutOfStock = product.stock <= 0
-  
-  // BUG: Price formatting is incorrect - doesn't handle edge cases
+
+  const priceFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+      }),
+    []
+  )
+
   const formatPrice = (price: number) => {
-    return `$${price.toFixed(2)}`
+    const safePrice = Number.isFinite(price) ? price : 0
+    return priceFormatter.format(safePrice)
   }
-  
-  // BUG: Stock status logic has issues
-  const getStockStatus = () => {
-    if (product.stock === 0) return 'Out of Stock'
-    if (product.stock <= 5) return 'Low Stock' 
+
+  const stockStatus = useMemo(() => {
+    if (product.stock <= 0) return 'Out of Stock'
+    if (product.stock <= 5) return 'Low Stock'
     return 'In Stock'
-  }
-  
-  const getStockColor = () => {
-    if (product.stock === 0) return 'text-error-600'
+  }, [product.stock])
+
+  const stockColor = useMemo(() => {
+    if (product.stock <= 0) return 'text-error-600'
     if (product.stock <= 5) return 'text-warning-600'
     return 'text-success-600'
-  }
-  
-  // PERFORMANCE ISSUE: This calculation runs on every render
-  const discountedPrice = Math.random() > 0.7 ? product.price * 0.9 : null
-  
+  }, [product.stock])
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow">
-      {/* BUG: Image component is not optimized properly */}
       <div className="relative h-48 bg-gray-100">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
-            alt={product.name} // BUG: Alt text should be more descriptive
+            alt={`${product.name} product photo`}
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={false} // BUG: Should be dynamic based on visibility
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-gray-400">No Image</span>
-          </div>
-        )}
-        {discountedPrice && (
-          <div className="absolute top-2 right-2 bg-error-500 text-white px-2 py-1 text-xs rounded">
-            Sale!
           </div>
         )}
       </div>
@@ -63,9 +63,12 @@ export function ProductCard({ product }: ProductCardProps) {
           <h3 className="text-lg font-semibold text-gray-900 truncate">
             {product.name}
           </h3>
-          {/* BUG: Stock badge is not screen reader friendly */}
-          <span className={`text-xs px-2 py-1 rounded ${getStockColor()}`}>
-            {getStockStatus()}
+          <span
+            className={`text-xs px-2 py-1 rounded ${stockColor}`}
+            role="status"
+            aria-label={`Stock status: ${stockStatus}`}
+          >
+            {stockStatus}
           </span>
         </div>
         
@@ -86,20 +89,9 @@ export function ProductCard({ product }: ProductCardProps) {
         
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-baseline">
-            {discountedPrice ? (
-              <>
-                <span className="text-lg font-bold text-error-600">
-                  {formatPrice(discountedPrice)}
-                </span>
-                <span className="text-sm text-gray-500 line-through ml-2">
-                  {formatPrice(product.price)}
-                </span>
-              </>
-            ) : (
-              <span className="text-lg font-bold text-gray-900">
-                {formatPrice(product.price)}
-              </span>
-            )}
+            <span className="text-lg font-bold text-gray-900">
+              {formatPrice(product.price)}
+            </span>
           </div>
           <span className="text-xs text-gray-400">
             SKU: {product.sku}
@@ -119,14 +111,14 @@ export function ProductCard({ product }: ProductCardProps) {
           >
             {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant="outline"
             onClick={() => {
               // TODO: Implement product details view
               console.log('View details:', product.id)
             }}
-            // BUG: Missing accessibility attributes
+            aria-label={`View details for ${product.name}`}
           >
             Details
           </Button>

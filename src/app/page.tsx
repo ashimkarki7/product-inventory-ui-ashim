@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductFilters } from '@/components/ProductFilters'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -9,8 +9,8 @@ import { getProducts } from '@/lib/api'
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filters, setFilters] = useState<FilterOptions>({
     category: '',
     minPrice: undefined,
@@ -18,51 +18,48 @@ export default function Home() {
     inStock: undefined,
   })
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true)
-        const data = await getProducts()
-        setProducts(data)
-        setFilteredProducts(data)
-      } catch (error) {
-        console.error('Error fetching products:', error)
-      } finally {
-        setLoading(false)
-      }
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await getProducts()
+      setProducts(data)
+    } catch (error) {
+      console.error('Error fetching products:', error)
+      setError('We were unable to load products. Please try again.')
+    } finally {
+      setLoading(false)
     }
-
-    fetchProducts()
   }, [])
 
-  // BUG: This filtering logic has performance issues and incorrect logic
   useEffect(() => {
-    let filtered = [...products]
-    
-    // Inefficient: Creates new array on every render
-    filtered = products.filter(product => {
+    fetchProducts()
+  }, [fetchProducts])
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
       if (filters.category && product.category !== filters.category) {
         return false
       }
-      
-      // BUG: Logic error - should be inclusive of min/max prices
-      if (filters.minPrice && product.price < filters.minPrice) {
+
+      if (typeof filters.minPrice === 'number' && product.price < filters.minPrice) {
         return false
       }
-      if (filters.maxPrice && product.price > filters.maxPrice) {
+
+      if (typeof filters.maxPrice === 'number' && product.price > filters.maxPrice) {
         return false
       }
-      
-      // BUG: This condition is backwards
-      if (filters.inStock !== undefined) {
-        if (filters.inStock && product.stock <= 0) return false
-        if (!filters.inStock && product.stock > 0) return false
+
+      if (filters.inStock === true && product.stock <= 0) {
+        return false
       }
-      
+
+      if (filters.inStock === false && product.stock > 0) {
+        return false
+      }
+
       return true
     })
-    
-    setFilteredProducts(filtered)
   }, [filters, products])
 
   if (loading) {
@@ -71,15 +68,30 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-lg border border-error-200 bg-error-50 p-4 text-sm text-error-800 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={fetchProducts}
+            className="self-start rounded-md border border-error-300 px-3 py-1 text-error-700 transition hover:bg-error-100"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Product Inventory</h2>
         <div className="text-sm text-gray-500">
           Showing {filteredProducts.length} of {products.length} products
         </div>
       </div>
-      
+
       <ProductFilters filters={filters} onFiltersChange={setFilters} />
-      
+
       {filteredProducts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500">No products found matching your criteria.</p>

@@ -158,6 +158,11 @@ npm run test:watch  # Run tests in watch mode
    - Lint your code: `npm run lint`
    - Test in different browsers and screen sizes
 
+### Known Issues Identified
+
+- The "Add to Cart" and "Details" actions in `ProductCard` still only log to the console. They should eventually surface real flows or at least show user feedback when the functionality is unavailable.
+- Filter selections are not persisted to the URL, so refreshing or sharing a filtered view resets back to the full catalog. Capturing filters in the query string would improve usability and QA.
+
 5. **Create Pull Request:**
    - Commit your changes with clear, descriptive messages
    - Create a pull request with a summary of all issues fixed
