@@ -16,7 +16,10 @@ export default function Home() {
     minPrice: undefined,
     maxPrice: undefined,
     inStock: undefined,
-  })
+  });
+
+
+
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -33,37 +36,42 @@ export default function Home() {
     }
 
     fetchProducts()
-  }, [])
+  }, []);
 
-  // BUG: This filtering logic has performance issues and incorrect logic
+
+// BUG: This filtering logic has performance issues and incorrect logic
   useEffect(() => {
-    let filtered = [...products]
-    
     // Inefficient: Creates new array on every render
-    filtered = products.filter(product => {
+    const filtered = products.filter(product => {
+      // Category filter
       if (filters.category && product.category !== filters.category) {
         return false
       }
-      
+
       // BUG: Logic error - should be inclusive of min/max prices
-      if (filters.minPrice && product.price < filters.minPrice) {
+      if (typeof filters.minPrice === 'number' && product.price < filters.minPrice) {
         return false
       }
-      if (filters.maxPrice && product.price > filters.maxPrice) {
+
+      if (typeof filters.maxPrice === 'number' && product.price > filters.maxPrice) {
         return false
       }
-      
-      // BUG: This condition is backwards
-      if (filters.inStock !== undefined) {
-        if (filters.inStock && product.stock <= 0) return false
-        if (!filters.inStock && product.stock > 0) return false
+
+      if (
+          filters.inStock !== undefined &&
+          filters.inStock !== (product.stock > 0)
+      ) {
+        return false
       }
-      
+
       return true
     })
-    
+
     setFilteredProducts(filtered)
   }, [filters, products])
+
+
+
 
   if (loading) {
     return <LoadingSpinner />
