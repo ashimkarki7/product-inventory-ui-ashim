@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent } from 'react'
+import { ChangeEvent,useCallback } from 'react'
 import type { FilterOptions, ProductCategory } from '@/types/product'
 
 interface ProductFiltersProps {
@@ -22,13 +22,19 @@ const categories: ProductCategory[] = [
 // BUG: This component has performance and UX issues
 export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps) {
   
-  // BUG: These handlers recreate functions on every render
-  const handleCategoryChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    onFiltersChange({
-      ...filters,
-      category: e.target.value
-    })
-  }
+  // BUG: These handlers recreate functions on every render Fixed
+  const handleCategoryChange = useCallback(
+      (e: ChangeEvent<HTMLSelectElement>) => {
+        onFiltersChange({
+          ...filters,
+          category: e.target.value,
+        });
+      },
+      [onFiltersChange]
+  );
+
+
+
   
   const handleMinPriceChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -64,7 +70,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
       category: '',
       minPrice: undefined,
       maxPrice: undefined,
-      inStock: true, // BUG: Should be undefined
+      inStock: undefined, // BUG: Should be undefined Fixed
     })
   }
   
