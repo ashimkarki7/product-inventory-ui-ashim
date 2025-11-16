@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent,useCallback } from 'react'
+import { ChangeEvent,MouseEvent , useCallback,useMemo } from 'react'
 import type { FilterOptions, ProductCategory } from '@/types/product'
 
 interface ProductFiltersProps {
@@ -21,6 +21,15 @@ const categories: ProductCategory[] = [
 
 // BUG: This component has performance and UX issues
 export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps) {
+
+  const parsePriceValue = (value: string) => {
+    if (value.trim() === '') {
+      return undefined
+    }
+
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  };
   
   // BUG: These handlers recreate functions on every render Fixed
   const handleCategoryChange = useCallback(
@@ -36,43 +45,82 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
 
 
   
-  const handleMinPriceChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    onFiltersChange({
-      ...filters,
-      minPrice: value ? parseFloat(value) : undefined
-    })
-  }
-  
-  const handleMaxPriceChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    onFiltersChange({
-      ...filters,
-      maxPrice: value ? parseFloat(value) : undefined
-    })
-  }
-  
-  const handleStockChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value
-    let inStock: boolean | undefined = undefined
-    if (value === 'true') inStock = true
-    if (value === 'false') inStock = false
-    
-    onFiltersChange({
-      ...filters,
-      inStock
-    })
-  }
-  
+  const handleMinPriceChange= useCallback(
+      (e: ChangeEvent<HTMLInputElement>) => {
+        const parsedValue = parsePriceValue(e.target.value)
+        onFiltersChange({
+          ...filters,
+          minPrice: parsedValue
+        })
+      },
+      [onFiltersChange]
+  );
+
+  const handleMaxPriceChange = useCallback(
+      (e: ChangeEvent<HTMLInputElement>) => {
+        const parsedValue = parsePriceValue(e.target.value)
+        onFiltersChange({
+          ...filters,
+          maxPrice: parsedValue
+        })
+      },
+      [onFiltersChange]
+  );
+
+  const handleStockChange = useCallback(
+      (e: ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value
+        let inStock: boolean | undefined
+        if (value === 'true') inStock = true
+        if (value === 'false') inStock = false
+        onFiltersChange({
+          ...filters,
+          inStock
+        })
+      },
+      [onFiltersChange]
+  );
+
+
   // BUG: Reset function doesn't properly clear all filters
-  const handleReset = () => {
-    onFiltersChange({
-      category: '',
-      minPrice: undefined,
-      maxPrice: undefined,
-      inStock: undefined, // BUG: Should be undefined Fixed
-    })
-  }
+    const handleReset  = useCallback(
+        (e: MouseEvent<HTMLButtonElement>) => {
+            e.preventDefault()
+            onFiltersChange({
+            category: '',
+            minPrice: undefined,
+            maxPrice: undefined,
+            inStock: undefined, // BUG: Should be undefined Fixed
+        })
+    },[]);
+
+
+    const filterSummary = useMemo(() => {
+        const segments: string[] = []
+
+        if (filters.category) {
+            segments.push(`Category: ${filters.category}`)
+        }
+
+        if (typeof filters.minPrice === 'number') {
+            segments.push(`Min: $${filters.minPrice}`)
+        }
+
+        if (typeof filters.maxPrice === 'number') {
+            segments.push(`Max: $${filters.maxPrice}`)
+        }
+
+        if (filters.inStock !== undefined) {
+            segments.push(filters.inStock ? 'In Stock Only' : 'Out of Stock Only')
+        }
+
+        if (segments.length === 0) {
+            return 'No filters applied'
+        }
+
+        return segments.join(' • ')
+    }, [filters])
+
   
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -106,7 +154,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
             placeholder="0.00"
             min="0"
             step="0.01"
-            value={filters.minPrice || ''}
+            value={filters.minPrice ?? ''}
             onChange={handleMinPriceChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-700 focus:border-transparent"
           />
@@ -122,7 +170,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
             placeholder="999.99"
             min="0"
             step="0.01"
-            value={filters.maxPrice || ''}
+            value={filters.maxPrice ?? ''}
             onChange={handleMaxPriceChange}
             className="text-gray-700 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
@@ -148,6 +196,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
           {/* BUG: Button lacks proper accessibility attributes */}
           <button
             onClick={handleReset}
+            aria-label="Reset all filters"
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
             type="button"
           >
@@ -158,10 +207,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
       
       {/* BUG: This summary text updates too frequently and causes unnecessary re-renders */}
       <div className="mt-3 text-xs text-gray-500">
-        {filters.category && `Category: ${filters.category}`}
-        {filters.minPrice && ` • Min: $${filters.minPrice}`}
-        {filters.maxPrice && ` • Max: $${filters.maxPrice}`}
-        {filters.inStock !== undefined && ` • ${filters.inStock ? 'In Stock' : 'Out of Stock'}`}
+          {filterSummary}
       </div>
     </div>
   )
