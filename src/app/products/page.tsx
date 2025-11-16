@@ -12,8 +12,8 @@ const productSchema = z.object({
   name: z.string().min(1, 'Product name is required').max(100, 'Name too long'),
   description: z.string().min(1, 'Description is required').max(500, 'Description too long'),
   category: z.string().min(1, 'Category is required'),
-  price: z.number().min(0.01, 'Price must be greater than 0').max(999999, 'Price too high'),
-  stock: z.number().int().min(0, 'Stock must be non-negative'),
+  price: z.coerce.number().min(0.01, 'Price must be greater than 0').max(999999, 'Price too high'),
+  stock: z.coerce.number().int().min(0, 'Stock must be non-negative'),
   sku: z.string().min(1, 'SKU is required').max(20, 'SKU too long'),
   imageUrl: z.string().url('Invalid URL').optional().or(z.literal(''))
 })
@@ -33,8 +33,10 @@ const categories: ProductCategory[] = [
 
 // BUG: This form has validation and UX issues
 export default function ProductsPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitMessage, setSubmitMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
+
+  const [submitMessage, setSubmitMessage] = useState('');
   
   const {
     register,
@@ -47,23 +49,24 @@ export default function ProductsPage() {
   
   // BUG: Error handling is incomplete
   const onSubmit = async (data: ProductFormData) => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
     setSubmitMessage('')
     
     try {
       const productData: CreateProductRequest = {
-        ...data,
-        price: Number(data.price), // BUG: Should validate number conversion
-        stock: Number(data.stock),
+        ...data, // BUG: Should validate number conversion Fixed
         imageUrl: data.imageUrl || undefined
       }
       
       await createProduct(productData)
-      setSubmitMessage('Product created successfully!')
       reset()
+      setSubmitStatus('success')
+      setSubmitMessage('Product created successfully!')
     } catch (error) {
-      // BUG: Error message is not user-friendly
-      setSubmitMessage(`Error: ${error instanceof Error ? error.message : 'Something went wrong'}`)
+      // BUG: Error message is not user-friendly Fixed
+      setSubmitStatus('error')
+      setSubmitMessage('Could not create product. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -74,9 +77,9 @@ export default function ProductsPage() {
       <div className="bg-white shadow-sm rounded-lg p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Product</h2>
         
-        {submitMessage && (
+        {submitStatus !== 'idle' && submitMessage && (
           <div className={`mb-4 p-3 rounded-md text-sm ${
-            submitMessage.includes('Error') 
+              submitStatus === 'error'
               ? 'bg-error-100 text-error-700 border border-error-200' 
               : 'bg-success-100 text-success-700 border border-success-200'
           }`}>
@@ -92,6 +95,8 @@ export default function ProductsPage() {
             <input
               type="text"
               id="name"
+              aria-invalid={!!errors.name}
+              aria-describedby={errors.name ? 'name-error' : undefined}
               {...register('name')}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                 errors.name ? 'border-error-500' : 'border-gray-300'
@@ -174,7 +179,7 @@ export default function ProductsPage() {
                 id="price"
                 step="0.01"
                 min="0"
-                {...register('price', { valueAsNumber: true })}
+                {...register('price')}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                   errors.price ? 'border-error-500' : 'border-gray-300'
                 }`}
@@ -193,7 +198,7 @@ export default function ProductsPage() {
                 type="number"
                 id="stock"
                 min="0"
-                {...register('stock', { valueAsNumber: true })}
+                {...register('stock')}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                   errors.stock ? 'border-error-500' : 'border-gray-300'
                 }`}
@@ -229,8 +234,10 @@ export default function ProductsPage() {
               variant="outline"
               onClick={() => {
                 reset()
+                setSubmitStatus('idle')
                 setSubmitMessage('')
               }}
+              disabled={isSubmitting}
             >
               Reset Form
             </Button>

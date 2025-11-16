@@ -1,38 +1,65 @@
 'use client'
+import { useMemo, useCallback } from 'react'
+import Image from 'next/image';
+import { Button } from '@/components/ui/Button';
+import type { Product } from '@/types/product';
+import { useRouter } from 'next/navigation';
 
-import Image from 'next/image'
-import { Button } from '@/components/ui/Button'
-import type { Product } from '@/types/product'
 
 interface ProductCardProps {
   product: Product
 }
 
+// BUG: Price formatting is incorrect - doesn't handle edge cases
+const formatPrice = (price: number | null | undefined): string => {
+  if (price === null || price === undefined || Number.isNaN(price) || !Number.isFinite(price)) {
+    return '$0.00'
+  }
+  return `$${price.toFixed(2)}`
+};
+
+const getStockStatus = (stock: number): string => {
+  if (stock <= 0) return 'Out of Stock'
+  if (stock <= 5) return 'Low Stock'
+  return 'In Stock'
+}
+
+
+const getStockColor = (stock: number): string => {
+  if (stock <= 0) return 'text-error-600'
+  if (stock <= 5) return 'text-warning-600'
+  return 'text-success-600'
+};
+
 // BUG: This component has several accessibility and performance issues
 export function ProductCard({ product }: ProductCardProps) {
+  const router = useRouter()
+
   const isOutOfStock = product.stock <= 0
   
-  // BUG: Price formatting is incorrect - doesn't handle edge cases
-  const formatPrice = (price: number) => {
-    return `$${price.toFixed(2)}`
-  }
+
   
   // BUG: Stock status logic has issues
-  const getStockStatus = () => {
-    if (product.stock === 0) return 'Out of Stock'
-    if (product.stock <= 5) return 'Low Stock' 
-    return 'In Stock'
-  }
-  
-  const getStockColor = () => {
-    if (product.stock === 0) return 'text-error-600'
-    if (product.stock <= 5) return 'text-warning-600'
-    return 'text-success-600'
-  }
-  
+
+
+
+  const handleViewDetails = useCallback(() => {
+    router.push(`/products/${product.id}`)
+  }, [router, product.id]);
+
   // PERFORMANCE ISSUE: This calculation runs on every render
-  const discountedPrice = Math.random() > 0.7 ? product.price * 0.9 : null
-  
+  const discountedPrice = useMemo(() => {
+    if (product.price > 100) {
+      return product.price * 0.9
+    }
+    return null
+  }, [product.price])
+
+
+  const stockStatus = getStockStatus(product.stock)
+  const stockColor = getStockColor(product.stock)
+
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow">
       {/* BUG: Image component is not optimized properly */}
@@ -40,7 +67,11 @@ export function ProductCard({ product }: ProductCardProps) {
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
-            alt={product.name} // BUG: Alt text should be more descriptive
+            alt={
+              product.description
+                  ? `${product.name} – ${product.description}`
+                  : `Image of ${product.name}`
+            } // BUG: Alt text should be more descriptive fixed
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -64,13 +95,16 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.name}
           </h3>
           {/* BUG: Stock badge is not screen reader friendly */}
-          <span className={`text-xs px-2 py-1 rounded ${getStockColor()}`}>
-            {getStockStatus()}
+          <span className={`text-xs px-2 py-1 rounded ${stockColor}`}
+                aria-live="polite"
+                aria-label={`${stockStatus} – ${product.stock} in stock`}
+          >
+            {stockStatus}
           </span>
         </div>
         
         <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-          {product.description}
+          {stockStatus}
         </p>
         
         <div className="flex justify-between items-center mb-3">
@@ -122,10 +156,8 @@ export function ProductCard({ product }: ProductCardProps) {
           <Button 
             size="sm" 
             variant="outline"
-            onClick={() => {
-              // TODO: Implement product details view
-              console.log('View details:', product.id)
-            }}
+            onClick={handleViewDetails}
+            aria-label={`View details for ${product.name}`}
             // BUG: Missing accessibility attributes
           >
             Details

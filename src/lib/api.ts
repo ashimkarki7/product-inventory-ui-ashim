@@ -5,38 +5,48 @@ import { mockProducts } from '@/data/mockProducts'
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  // Fallback – still not perfect, but better than plain Math.random usage
+  return Math.random().toString(36).slice(2, 11)
+}
+
 // BUG: This function has memory leaks and inefficient data handling
 export async function getProducts(filters?: FilterOptions): Promise<Product[]> {
   await delay(800) // Simulate slow API
-  
-  let products = [...mockProducts]
-  
-  if (filters) {
-    // PERFORMANCE ISSUE: Multiple array iterations instead of single pass
-    if (filters.category) {
-      products = products.filter(p => p.category === filters.category)
+
+  if (!filters) {
+    return [...mockProducts]
+  };
+
+  const { category, minPrice, maxPrice, inStock } = filters;
+
+  // PERFORMANCE ISSUE: Multiple array iterations instead of single pass Fixed
+
+  return mockProducts.filter((product) => {
+    // Category filter
+    if (category && product.category !== category) {
+      return false
     }
-    
-    // BUG: Price filtering logic is incorrect
-    if (filters.minPrice) {
-      products = products.filter(p => p.price >= filters.minPrice!) // Non-null assertion is dangerous
+
+    // BUG: Price filtering logic is incorrect Fixed
+    if (typeof minPrice === 'number' && product.price < minPrice) {
+      return false
     }
-    
-    if (filters.maxPrice) {
-      products = products.filter(p => p.price <= filters.maxPrice!)
+
+    if (typeof maxPrice === 'number' && product.price > maxPrice) {
+      return false
     }
-    
-    // BUG: Stock filtering logic is backwards
-    if (filters.inStock !== undefined) {
-      if (filters.inStock) {
-        products = products.filter(p => p.stock <= 0) // Should be > 0
-      } else {
-        products = products.filter(p => p.stock > 0) // Should be <= 0
-      }
+
+    // BUG: Stock filtering logic is backwards Fixed
+    if (inStock !== undefined && inStock !== (product.stock > 0)) {
+      return false
     }
-  }
-  
-  return products
+
+    return true
+  });
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
@@ -47,60 +57,80 @@ export async function getProduct(id: string): Promise<Product | null> {
 }
 
 // BUG: This function doesn't properly validate input data
-export async function createProduct(data: CreateProductRequest): Promise<ApiResponse<Product>> {
+export async function createProduct(
+    data: CreateProductRequest
+): Promise<ApiResponse<Product>> {
   await delay(500)
-  
-  // Missing validation for required fields
-  if (!data.name || !data.category) {
-    throw new Error('Invalid product data')
+
+  const { name, category, price } = data
+
+  // Basic required field validation
+  if (!name?.trim() || !category?.trim()) {
+    throw new Error('Name and category are required')
   }
-  
-  // BUG: Price validation is incorrect
-  if (data.price < 0) { // Should also check for reasonable upper bounds
-    throw new Error('Price cannot be negative')
+
+  // Validate price
+  if (price === undefined || Number.isNaN(price)) {
+    throw new Error('Price is required and must be a valid number')
   }
-  
+
+  if (price < 0 || price > 1_000_000) {
+    throw new Error('Price must be between 0 and 1,000,000')
+  }
+
+  const now = new Date().toISOString()
+
   const newProduct: Product = {
-    id: Math.random().toString(36).substr(2, 9), // BUG: Using Math.random for ID generation
+    id: generateId(),
     ...data,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
   }
-  
-  // In a real app, this would persist to a database
   mockProducts.push(newProduct)
-  
+
   return {
     success: true,
     data: newProduct,
-    message: 'Product created successfully'
+    message: 'Product created successfully',
   }
-}
+};
 
-export async function updateProduct(data: UpdateProductRequest): Promise<ApiResponse<Product>> {
+export async function updateProduct(
+    data: UpdateProductRequest
+): Promise<ApiResponse<Product>> {
   await delay(400)
-  
-  const index = mockProducts.findIndex(p => p.id === data.id)
-  
+
+  const index = mockProducts.findIndex((p) => p.id === data.id)
+
   if (index === -1) {
     throw new Error('Product not found')
   }
-  
-  // BUG: This doesn't properly merge the updated data
-  const updatedProduct = {
-    ...mockProducts[index],
-    ...data,
+
+  const existing = mockProducts[index]
+
+  // Only override fields that are actually provided (avoid blindly writing undefined)
+  const partialUpdate: Partial<Product> = {}
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && key !== 'id') {
+      // @ts-expect-error – casting by key, but safe in controlled code
+      partialUpdate[key] = value
+    }
+  })
+
+  const updatedProduct: Product = {
+    ...existing,
+    ...partialUpdate,
     updatedAt: new Date().toISOString(),
   }
-  
+
   mockProducts[index] = updatedProduct
-  
+
   return {
     success: true,
     data: updatedProduct,
-    message: 'Product updated successfully'
+    message: 'Product updated successfully',
   }
-}
+};
 
 export async function deleteProduct(id: string): Promise<ApiResponse<void>> {
   await delay(300)
