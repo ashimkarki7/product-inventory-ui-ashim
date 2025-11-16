@@ -179,7 +179,7 @@ export default function ProductsPage() {
                 id="price"
                 step="0.01"
                 min="0"
-                {...register('price', { valueAsNumber: true })}
+                {...register('price')}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                   errors.price ? 'border-error-500' : 'border-gray-300'
                 }`}
@@ -198,7 +198,7 @@ export default function ProductsPage() {
                 type="number"
                 id="stock"
                 min="0"
-                {...register('stock', { valueAsNumber: true })}
+                {...register('stock')}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                   errors.stock ? 'border-error-500' : 'border-gray-300'
                 }`}
