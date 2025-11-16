@@ -35,7 +35,7 @@ const categories: ProductCategory[] = [
 export default function ProductsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState('')
-  
+
   const {
     register,
     handleSubmit,
@@ -44,26 +44,28 @@ export default function ProductsPage() {
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema)
   })
-  
+
   // BUG: Error handling is incomplete
   const onSubmit = async (data: ProductFormData) => {
     setIsSubmitting(true)
     setSubmitMessage('')
-    
+
     try {
       const productData: CreateProductRequest = {
         ...data,
-        price: Number(data.price), // BUG: Should validate number conversion
-        stock: Number(data.stock),
-        imageUrl: data.imageUrl || undefined
+        imageUrl: data.imageUrl?.trim() ? data.imageUrl.trim() : undefined
       }
-      
-      await createProduct(productData)
-      setSubmitMessage('Product created successfully!')
+
+      const response = await createProduct(productData)
+      if (!response.success) {
+        throw new Error(response.message || 'Unable to create product')
+      }
+
+      setSubmitMessage(response.message || 'Product created successfully!')
       reset()
     } catch (error) {
-      // BUG: Error message is not user-friendly
-      setSubmitMessage(`Error: ${error instanceof Error ? error.message : 'Something went wrong'}`)
+      const message = error instanceof Error ? error.message : 'Something went wrong'
+      setSubmitMessage(`We couldn't create the product: ${message}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -75,11 +77,15 @@ export default function ProductsPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Product</h2>
         
         {submitMessage && (
-          <div className={`mb-4 p-3 rounded-md text-sm ${
-            submitMessage.includes('Error') 
-              ? 'bg-error-100 text-error-700 border border-error-200' 
-              : 'bg-success-100 text-success-700 border border-success-200'
-          }`}>
+          <div
+            role="status"
+            aria-live="assertive"
+            className={`mb-4 p-3 rounded-md text-sm ${
+              submitMessage.startsWith("We couldn't")
+                ? 'bg-error-100 text-error-700 border border-error-200'
+                : 'bg-success-100 text-success-700 border border-success-200'
+            }`}
+          >
             {submitMessage}
           </div>
         )}

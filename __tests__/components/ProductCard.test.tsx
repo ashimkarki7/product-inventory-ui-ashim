@@ -40,9 +40,9 @@ describe('ProductCard', () => {
 
   it('shows out of stock status and disables button', () => {
     render(<ProductCard product={outOfStockProduct} />)
-    
-    expect(screen.getByText('Out of Stock')).toBeInTheDocument()
-    
+
+    expect(screen.getAllByText('Out of Stock')[0]).toBeInTheDocument()
+
     const addToCartButton = screen.getByRole('button', { name: /out of stock/i })
     expect(addToCartButton).toBeDisabled()
   })

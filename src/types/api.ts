@@ -22,12 +22,13 @@ export interface ApiError {
 }
 
 export class ApiException extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public details?: unknown
-  ) {
+  public code: string
+  public details?: unknown
+
+  constructor(code: string, message: string, details?: unknown) {
     super(message)
     this.name = 'ApiException'
+    this.code = code
+    this.details = details
   }
 }

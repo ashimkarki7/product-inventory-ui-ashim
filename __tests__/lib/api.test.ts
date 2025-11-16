@@ -63,7 +63,7 @@ describe('API Functions', () => {
         sku: 'TEST-123'
       } as CreateProductRequest
 
-      await expect(createProduct(invalidProduct)).rejects.toThrow('Invalid product data')
+      await expect(createProduct(invalidProduct)).rejects.toThrow('Field "name" is required')
     })
 
     it('throws error for negative price', async () => {
@@ -76,7 +76,7 @@ describe('API Functions', () => {
         sku: 'TEST-123'
       }
 
-      await expect(createProduct(invalidProduct)).rejects.toThrow('Price cannot be negative')
+      await expect(createProduct(invalidProduct)).rejects.toThrow('Price must be between $0.01 and $999,999')
     })
   })
 })

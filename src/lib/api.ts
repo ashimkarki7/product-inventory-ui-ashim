@@ -5,38 +5,54 @@ import { mockProducts } from '@/data/mockProducts'
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+const isValidUrl = (value: string) => {
+  try {
+    new URL(value)
+    return true
+  } catch {
+    return false
+  }
+}
+
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 // BUG: This function has memory leaks and inefficient data handling
 export async function getProducts(filters?: FilterOptions): Promise<Product[]> {
   await delay(800) // Simulate slow API
-  
-  let products = [...mockProducts]
-  
-  if (filters) {
-    // PERFORMANCE ISSUE: Multiple array iterations instead of single pass
-    if (filters.category) {
-      products = products.filter(p => p.category === filters.category)
-    }
-    
-    // BUG: Price filtering logic is incorrect
-    if (filters.minPrice) {
-      products = products.filter(p => p.price >= filters.minPrice!) // Non-null assertion is dangerous
-    }
-    
-    if (filters.maxPrice) {
-      products = products.filter(p => p.price <= filters.maxPrice!)
-    }
-    
-    // BUG: Stock filtering logic is backwards
-    if (filters.inStock !== undefined) {
-      if (filters.inStock) {
-        products = products.filter(p => p.stock <= 0) // Should be > 0
-      } else {
-        products = products.filter(p => p.stock > 0) // Should be <= 0
-      }
-    }
+
+  if (!filters) {
+    return [...mockProducts]
   }
-  
-  return products
+
+  return mockProducts.filter((product) => {
+    if (filters.category && product.category !== filters.category) {
+      return false
+    }
+
+    if (typeof filters.minPrice === 'number' && product.price < filters.minPrice) {
+      return false
+    }
+
+    if (typeof filters.maxPrice === 'number' && product.price > filters.maxPrice) {
+      return false
+    }
+
+    if (filters.inStock === true && product.stock <= 0) {
+      return false
+    }
+
+    if (filters.inStock === false && product.stock > 0) {
+      return false
+    }
+
+    return true
+  })
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
@@ -49,27 +65,47 @@ export async function getProduct(id: string): Promise<Product | null> {
 // BUG: This function doesn't properly validate input data
 export async function createProduct(data: CreateProductRequest): Promise<ApiResponse<Product>> {
   await delay(500)
-  
-  // Missing validation for required fields
-  if (!data.name || !data.category) {
-    throw new Error('Invalid product data')
+
+  const requiredFields: (keyof CreateProductRequest)[] = ['name', 'description', 'category', 'price', 'stock', 'sku']
+  const missingField = requiredFields.find((field) => {
+    const value = data[field]
+    return value === undefined || value === null || value === ''
+  })
+
+  if (missingField) {
+    throw new Error(`Field "${missingField}" is required`)
   }
-  
-  // BUG: Price validation is incorrect
-  if (data.price < 0) { // Should also check for reasonable upper bounds
-    throw new Error('Price cannot be negative')
+
+  if (!Number.isFinite(data.price)) {
+    throw new Error('Price must be a valid number')
   }
-  
+
+  if (data.price <= 0 || data.price > 999999) {
+    throw new Error('Price must be between $0.01 and $999,999')
+  }
+
+  if (!Number.isFinite(data.stock)) {
+    throw new Error('Stock must be a valid number')
+  }
+
+  if (data.stock < 0 || !Number.isInteger(data.stock)) {
+    throw new Error('Stock must be a whole number greater than or equal to 0')
+  }
+
+  if (data.imageUrl && !isValidUrl(data.imageUrl)) {
+    throw new Error('Image URL must be a valid URL')
+  }
+
   const newProduct: Product = {
-    id: Math.random().toString(36).substr(2, 9), // BUG: Using Math.random for ID generation
+    id: generateId(),
     ...data,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
-  
+
   // In a real app, this would persist to a database
   mockProducts.push(newProduct)
-  
+
   return {
     success: true,
     data: newProduct,
