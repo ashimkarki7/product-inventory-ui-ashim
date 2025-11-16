@@ -79,11 +79,11 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
             id="category-filter"
             value={filters.category}
             onChange={handleCategoryChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="text-gray-700 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
-            <option value="">All Categories</option>
+            <option value="" className="text-gray-700">All Categories</option>
             {categories.map((category) => (
-              <option key={category} value={category}>
+              <option key={category} value={category}   className="text-gray-700">
                 {category}
               </option>
             ))}
@@ -102,7 +102,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
             step="0.01"
             value={filters.minPrice || ''}
             onChange={handleMinPriceChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-700 focus:border-transparent"
           />
         </div>
         
@@ -118,7 +118,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
             step="0.01"
             value={filters.maxPrice || ''}
             onChange={handleMaxPriceChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="text-gray-700 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
         </div>
         
@@ -130,11 +130,11 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
             id="stock-filter"
             value={filters.inStock === undefined ? '' : filters.inStock.toString()}
             onChange={handleStockChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className=" text-gray-700 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
-            <option value="">All Products</option>
-            <option value="true">In Stock Only</option>
-            <option value="false">Out of Stock Only</option>
+            <option value="" className="text-gray-700">All Products</option>
+            <option value="true" className="text-gray-700">In Stock Only</option>
+            <option value="false" className="text-gray-700">Out of Stock Only</option>
           </select>
         </div>
         
